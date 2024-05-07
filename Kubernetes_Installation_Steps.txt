@@ -1,0 +1,181 @@
+Install Kubernetes Using Following Commands (v-1.28)
+
+sudo apt-get update
+
+sudo apt install docker.io -y
+sudo chmod 666 /var/run/docker.sock
+
+sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
+sudo mkdir -p -m 755 /etc/apt/keyrings
+
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt update
+
+sudo apt install -y kubeadm=1.28.1-1.1 kubelet=1.28.1-1.1 kubectl=1.28.1-1.1
+
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+kubeadm join 10.0.11.38:6443 --token iv8ggm.4mlp65z32s9ruah2 \
+        --discovery-token-ca-cert-hash sha256:b9b768a9811b43acf79b8c01e9346d30651d3c9f218c84728cbda9be1ef2f010
+
+kubectl apply -f https://docs.projectcalico.org/v3.20/manifests/calico.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.49.0/deploy/static/provider/baremetal/deploy.yaml
+
+
+Create NameSpace using Following Command
+
+kubectl create ns webapps
+
+Create Service Account
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: webapps
+
+kubectl apply -f svc.yaml
+
+Create Role For Service Account
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-role
+  namespace: webapps
+rules:
+  - apiGroups:
+        - ""
+        - apps
+        - autoscaling
+        - batch
+        - extensions
+        - policy
+        - rbac.authorization.k8s.io
+    resources:
+      - pods
+      - componentstatuses
+      - configmaps
+      - daemonsets
+      - deployments
+      - events
+      - endpoints
+      - horizontalpodautoscalers
+      - ingress
+      - jobs
+      - limitranges
+      - namespaces
+      - nodes
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
+      - replicasets
+      - replicationcontrollers
+      - serviceaccounts
+      - services
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+kubectl apply -f role.yaml
+
+Bind The Role To Service Account
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-rolebinding
+  namespace: webapps 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: app-role 
+subjects:
+- namespace: webapps 
+  kind: ServiceAccount
+  name: jenkins
+
+kubectl apply -f bind.yaml
+
+Create Token 
+
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: mysecretname
+  annotations:
+    kubernetes.io/service-account.name: jenkins
+
+Kubectl apply -f sec.yaml -n webapps
+
+kubectl describe secret mysecretname -n webapps
+
+cd ~/.kube
+
+cat config
+
+
+
+
+
+Jenkins Installation
+
+sudo yum update –y
+
+sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+
+sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+sudo yum upgrade
+
+sudo yum install java-17-amazon-corretto -y
+
+sudo yum install jenkins -y
+
+sudo systemctl enable jenkins
+
+sudo systemctl start jenkins
+
+sudo systemctl status jenkins
+
+
+
+
+Trivy Installation Commands (v-0.21.0)
+
+sudo yum update -y
+
+sudo yum install wget
+wget https://github.com/aquasecurity/trivy/releases/download/v0.21.0/trivy_0.21.0_Linux-64bit.rpm
+sudo rpm -i trivy_0.21.0_Linux-64bit.rpm
+
+(optional) ls -l /usr/local/bin/trivy trivy
+
+ln -s /usr/local/bin/trivy trivy
+
+trivy --version
+
+Install Kubectl on Jenkins
+
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+sudo install -o root -g root -m 0755 kubectl /usr/bin/kubectl
+
+kubectl version --client
+
+
+
+
+
+
+
+
+
+
